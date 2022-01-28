@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+package-lock.json
+
+node_modules/
+
+*/**/config.json
+*/**/out.log
+*/**/bundle.js

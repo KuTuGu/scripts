@@ -1,0 +1,16 @@
+{
+  "infos": [{
+    "account": "",
+    "password": "",
+    "token": "",
+    "server": "",
+    "channel": "",
+    "interval": 1,
+    "listen": true,
+    "reg": ["[^http|@]+"],
+    "copy": false,
+    "browser": true,
+    "headless": true
+  }],
+  "messages": []
+}
