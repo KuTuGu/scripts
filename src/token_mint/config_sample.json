@@ -1,0 +1,22 @@
+{
+  "defaultProvider": ["goerli"],
+  "RPCProvider": [],
+  "bundles": [{
+    "contract": "",
+    "secret": "",
+    "abi": [
+      "function mint() external payable"
+    ],
+    "func": "mint",
+    "payload": [],
+    "price": 0,
+    "maxPriorityFeePerGas": 2,
+    "maxFeePerGas": 3,
+    "gasLimit": 50000
+  }],
+  "flashbot": true,
+  "limit": 5,
+  "debug": true,
+  "blockNumberInFuture": 3,
+  "endpoint": "https://relay-goerli.flashbots.net"
+}

@@ -5,13 +5,17 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node -r esbuild-register",
-    "chat": "npm start -- src/discord_chat/index.ts"
+    "chat": "npm start -- src/discord_chat/index.ts",
+    "mint": "npm start -- src/token_mint/index.ts",
+    "mint:build": "esbuild src/token_mint/index.ts --bundle --minify --platform=node --outfile=src/token_mint/bundle.js"
   },
   "author": "KuTuGu",
   "license": "Mozzila",
   "dependencies": {
+    "@flashbots/ethers-provider-bundle": "^0.4.3",
     "axios": "^0.25.0",
     "chalk": "^4.1.2",
+    "ethers": "^5.5.3",
     "puppeteer": "^13.1.1"
   },
   "devDependencies": {
