@@ -6,22 +6,32 @@ import { logSuccess, logError, logInfo } from "../utils/log";
 import { getRandomOne, getRandomFactor } from "../utils/random";
 import { sleep } from "../utils/sleep";
 import { promiseAll } from "../utils/concurrency";
+import { doWithConfig } from "../utils/config";
 
 interface Config {
+  // use browser, safe
   account?: string;
   password?: string;
+  // use API, block risk
   token?: string;
+  // server info
   server: string;
   channel: string;
   proxy?: {
     host: string;
     port: string;
-  };
+  }
+  // interval: num * 2 ~ 4s(default)
   interval?: number;
+  // only listen, no chat
   listen?: boolean;
-  reg?: Array<string>;
+  // listen, copy and chat
   copy?: boolean;
+  // listen rule
+  reg?: Array<string>;
+  // chat using browser
   browser?: boolean;
+  // open window or not
   headless?: boolean;
 }
 
@@ -175,13 +185,4 @@ process.on('SIGINT', () => {
 const pagesStore = {};
 const messages = new Set();
 
-try {
-  const str = fs.readFileSync(process?.argv?.[process?.argv?.length - 1], 'utf-8');
-  const config = JSON.parse(str);
-
-  if (config) {
-    infinite(config);
-  }
-} catch(err) {
-  logError('Read config fail: ', err);
-}
+doWithConfig(infinite);
