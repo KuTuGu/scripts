@@ -13,11 +13,13 @@ interface Config {
     contract: string;
     // wallet secret
     secret: string;
-    abi: Array<string>;
+    abi?: Array<string>;
     // mint function
-    func: string;
+    func?: string;
     // mint function params
-    payload: Array<any>;
+    payload?: Array<any>;
+    // support origin input data
+    data?: string;
     // mint price, ether
     price: string | number;
     // EIP-1559, gwei
@@ -136,12 +138,12 @@ async function mint(info): Promise<void> {
       wallet = signerStore[info?.secret] = new ethers.Wallet(info.secret, provider);
     }
 
-    const iface = new ethers.utils.Interface(info?.abi);
+    const iface = new ethers.utils.Interface(info?.abi || []);
     const { chainId } = await provider.getNetwork();
     const transactionRequest = {
       chainId,
       to: info?.contract,
-      data: iface.encodeFunctionData(info?.func, info?.payload),
+      data: info?.data || iface.encodeFunctionData(info?.func, info?.payload),
       value: ethers.utils.parseUnits(String(info?.price), 'ether'),
       type: 2,
       gasLimit: info?.gasLimit,
