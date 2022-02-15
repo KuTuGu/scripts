@@ -17,13 +17,15 @@ add a config.json:
     contract: string;
     // wallet secret
     secret: string;
-    abi?: Array<string>;
-    // mint function
-    func?: string;
-    // mint function params
-    payload?: Array<any>;
-    // support origin input data
-    data?: string;
+    input: {
+      abi?: Array<string>;
+      // mint function
+      func?: string;
+      // mint function params
+      payload?: Array<any>;
+      // support origin input data
+      data?: string;
+    }
     // mint price, ether
     price: string | number;
     // EIP-1559, gwei

@@ -4,11 +4,14 @@
   "bundles": [{
     "contract": "",
     "secret": "",
-    "abi": [
-      "function mint() external payable"
-    ],
-    "func": "mint",
-    "payload": [],
+    "input": {
+      "abi": [
+        "function mint() external payable"
+      ],
+      "func": "mint",
+      "payload": [],
+      "data": "0x"
+    },
     "price": 0,
     "maxPriorityFeePerGas": 2,
     "maxFeePerGas": 3,

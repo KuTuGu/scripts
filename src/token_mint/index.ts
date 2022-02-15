@@ -6,27 +6,40 @@ import { logError, logInfo, logSuccess, logWarn } from "../utils/log";
 import { promiseAll } from "../utils/concurrency";
 import { doWithConfig } from '../utils/config';
 
+interface PayloadData {
+  abi: Array<string>;
+  // mint function
+  func: string;
+  // mint function params
+  payload: Array<any>;
+}
+interface OriginData {
+  // support origin input data
+  data: string;
+}
+interface InputData {
+  input: PayloadData | OriginData;
+  // mint price, ether
+  price: string | number;
+}
+
+interface GAS {
+  // EIP-1559, gwei
+  maxPriorityFeePerGas: number;
+  maxFeePerGas: number;
+  gasLimit?: number;
+}
+
+interface SingleTransaction extends InputData, GAS {
+  contract: string;
+  // wallet secret
+  secret: string;
+}
+
 interface Config {
   defaultProvider?: Array<any>;
   RPCProvider?: Array<any>;
-  bundles: Array<{
-    contract: string;
-    // wallet secret
-    secret: string;
-    abi?: Array<string>;
-    // mint function
-    func?: string;
-    // mint function params
-    payload?: Array<any>;
-    // support origin input data
-    data?: string;
-    // mint price, ether
-    price: string | number;
-    // EIP-1559, gwei
-    maxPriorityFeePerGas: number;
-    maxFeePerGas: number;
-    gasLimit?: number;
-  }>;
+  bundles: Array<SingleTransaction>;
   // use flashbot bundle
   flashbot?: boolean;
   // bundle tx mount in flashbot
@@ -47,6 +60,15 @@ let bundleStore: Array<FlashbotsBundleTransaction> = [];
 let provider: providers.BaseProvider | providers.StaticJsonRpcProvider = null;
 let flashbot: FlashbotsBundleProvider = null;
 let config = {} as Config;
+
+function cookedInputData(input: PayloadData | OriginData): string {
+  if ((<OriginData>input)?.data) {
+    return (<OriginData>input)?.data;
+  } else {
+    const iface = new ethers.utils.Interface((<PayloadData>input)?.abi);
+    return iface.encodeFunctionData((<PayloadData>input)?.func, (<PayloadData>input)?.payload);
+  }
+}
 
 async function checkSimulation (signedBundle: Array<string>): Promise<BigNumber> {
   const simulationResponse = await flashbot.simulate(signedBundle, "latest");
@@ -131,19 +153,18 @@ async function dealWithBundle() {
   }
 }
 
-async function mint(info): Promise<void> {
+async function mint(info: SingleTransaction): Promise<void> {
   try {
     let wallet = signerStore[info?.secret];
     if (!wallet) {
       wallet = signerStore[info?.secret] = new ethers.Wallet(info.secret, provider);
     }
 
-    const iface = new ethers.utils.Interface(info?.abi || []);
     const { chainId } = await provider.getNetwork();
     const transactionRequest = {
       chainId,
       to: info?.contract,
-      data: info?.data || iface.encodeFunctionData(info?.func, info?.payload),
+      data: cookedInputData(info?.input),
       value: ethers.utils.parseUnits(String(info?.price), 'ether'),
       type: 2,
       gasLimit: info?.gasLimit,
