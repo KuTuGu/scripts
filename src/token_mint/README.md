@@ -35,12 +35,23 @@ add a config.json:
   }>;
   // use flashbot bundle
   flashbot?: boolean;
-  // bundle tx mount
-  limit?: number;
   // send bundle at special block
   blockNumber?: number;
   // send bundle after latest block
   blockNumberInFuture?: number;
+  // listen mempool pending tx
+  listenPool?: {
+    // JSON RPC interface
+    wss: string;
+    // RPC subscribe message
+    subscribe: string;
+    // the attribute chain of the response message to get tx
+    txChain: string;
+    // support listening the corresponding contract and input data
+    contract: string;
+    // match input data
+    input: PayloadData | OriginData;
+  }
   // flashbot bundle simulate
   debug?: boolean;
   // flashbot network endpoint

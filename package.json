@@ -16,7 +16,8 @@
     "axios": "^0.25.0",
     "chalk": "^4.1.2",
     "ethers": "^5.5.3",
-    "puppeteer": "^13.1.1"
+    "puppeteer": "^13.1.1",
+    "ws": "^8.5.0"
   },
   "devDependencies": {
     "esbuild": "^0.13.15",

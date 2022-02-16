@@ -1,10 +1,12 @@
+import WebSocket from 'ws';
 import ethers from 'ethers';
-import type { providers, Contract, Signer, BigNumber } from 'ethers';
+import type { providers, Signer, BigNumber } from 'ethers';
 import { FlashbotsBundleProvider, FlashbotsBundleResolution } from '@flashbots/ethers-provider-bundle';
 import type { FlashbotsBundleTransaction } from '@flashbots/ethers-provider-bundle';
 import { logError, logInfo, logSuccess, logWarn } from "../utils/log";
 import { promiseAll } from "../utils/concurrency";
 import { doWithConfig } from '../utils/config';
+import * as Lodash from "../utils/lodash";
 
 interface PayloadData {
   abi: Array<string>;
@@ -36,18 +38,31 @@ interface SingleTransaction extends InputData, GAS {
   secret: string;
 }
 
+interface ListenPool {
+  // JSON RPC interface
+  wss: string;
+  // RPC subscribe message
+  subscribe: string;
+  // the attribute chain of the response message to get tx
+  txChain: string;
+  // support listening the corresponding contract and input data
+  contract: string;
+  // match input data
+  input: PayloadData | OriginData;
+}
+
 interface Config {
   defaultProvider?: Array<any>;
   RPCProvider?: Array<any>;
   bundles: Array<SingleTransaction>;
   // use flashbot bundle
   flashbot?: boolean;
-  // bundle tx mount in flashbot
-  limit?: number;
   // send bundle at special block
   blockNumber?: number;
   // send bundle after latest block
   blockNumberInFuture?: number;
+  // listen mempool pending tx 
+  listenPool?: ListenPool;
   // flashbot bundle simulate
   debug?: boolean;
   // flashbot network endpoint
@@ -59,6 +74,8 @@ const signerStore: Record<string, Signer> = {};
 let bundleStore: Array<FlashbotsBundleTransaction> = [];
 let provider: providers.BaseProvider | providers.StaticJsonRpcProvider = null;
 let flashbot: FlashbotsBundleProvider = null;
+let pendingTx: string = '';
+let MINT_FLAG: boolean = false;
 let config = {} as Config;
 
 function cookedInputData(input: PayloadData | OriginData): string {
@@ -110,11 +127,13 @@ async function sendBundle(signedBundle: Array<string>) {
   let blockNumber = config?.blockNumber;
   if (!blockNumber) {
     const block = await provider.getBlock("latest");
-    blockNumber = block.number + (config?.blockNumberInFuture || 3);
+    blockNumber = block.number + (config?.blockNumberInFuture || 1);
   }
-
   logInfo("Send bundle at block: ", blockNumber);
-  const bundleReceipt = await flashbot.sendRawBundle(signedBundle, blockNumber);
+  const bundleReceipt = await flashbot.sendRawBundle(
+    pendingTx ? [pendingTx, ...signedBundle] : signedBundle,
+    blockNumber
+  );
 
   if ('error' in bundleReceipt) {
     throw new Error(bundleReceipt?.error?.message)
@@ -131,7 +150,10 @@ async function sendBundle(signedBundle: Array<string>) {
     logWarn("Restart mint...");
     return sendBundle(signedBundle);
   } else if (bundleResolution === FlashbotsBundleResolution.AccountNonceTooHigh) {
-    throw new Error("Nonce too high, bailing");
+    logWarn("Listen tx has been minted");
+    logWarn("Restart mint...");
+    pendingTx = '';
+    return sendBundle(signedBundle);
   }
 }
 
@@ -140,14 +162,26 @@ async function dealWithBundle() {
     const toSend = bundleStore;
     bundleStore = [];
 
-    const signedBundle = await flashbot?.signBundle?.(toSend);
+    logInfo('Start mint...');
+    if (config?.flashbot) {
+      const signedBundle = await flashbot?.signBundle?.(toSend);
 
-    if (config?.debug) {
-      const simulatedGasPrice = await checkSimulation(signedBundle);
-      logInfo(`Simulate gasPrice: ${ethers.utils.formatUnits(simulatedGasPrice, 'gwei')} gwei`);
+      if (config?.debug) {
+        const simulatedGasPrice = await checkSimulation(signedBundle);
+        logInfo(`Simulate gasPrice: ${ethers.utils.formatUnits(simulatedGasPrice, 'gwei')} gwei`);
+      }
+
+      await sendBundle(signedBundle);
+    } else {
+      toSend?.forEach?.(async ({ signer, transaction }) => {
+        const res = await signer?.sendTransaction?.(transaction);
+        const info = await res?.wait?.();
+        logSuccess("Mint success: ", info?.transactionHash);
+        if (config?.debug) {
+          logInfo(JSON.stringify(info, null, 2))
+        }
+      })
     }
-
-    await sendBundle(signedBundle);
   } catch(err) {
     logError("Send flashbot bundle abort: ", err);
   }
@@ -172,24 +206,10 @@ async function mint(info: SingleTransaction): Promise<void> {
       maxFeePerGas: ethers.utils.parseUnits(String(info?.maxFeePerGas), 'gwei'),
     }
 
-    if (config?.flashbot) {
-      bundleStore.push({
-        signer: wallet,
-        transaction: transactionRequest
-      });
-  
-      if (bundleStore.length >= config?.limit) {
-        await dealWithBundle();
-      }
-    } else {
-      logInfo('Start mint...');
-      const res = await wallet.sendTransaction(transactionRequest);
-      const info = await res.wait();
-      logSuccess("Mint success: ", info?.transactionHash);
-      if (config?.debug) {
-        logInfo(JSON.stringify(info, null, 2))
-      }
-    }
+    bundleStore.push({
+      signer: wallet,
+      transaction: transactionRequest
+    });
   } catch(err) {
     logError("Get mint info fail: ", err);
     logWarn("Mint contract address: ", info?.contract);
@@ -212,9 +232,47 @@ async function runFlashBot(conf) {
       flashbot = await FlashbotsBundleProvider.create(provider, ethers.Wallet.createRandom(), config?.endpoint)
     }
 
+    if (config?.listenPool) {
+      const pool = config?.listenPool;
+      const ws = new WebSocket(pool?.wss);
+
+      ws.on('open', () => {
+        ws.send(pool?.subscribe);
+      });
+      ws.on('message', async (data: string) => {
+        try {
+          if (MINT_FLAG) {
+            return;
+          }
+
+          const o = JSON.parse(data);
+          const tx = Lodash.get(o, pool?.txChain);
+    
+          if (tx) {
+            const tran = await provider.getTransaction(tx);
+    
+            if (tran?.to === pool?.contract) {
+              const data = cookedInputData(pool?.input);
+              if (data === tran?.data) {
+                MINT_FLAG = true;
+                const { r, s, v } = tran;
+                const signature = { r, s, v };
+                pendingTx = ethers.utils.serializeTransaction(tran, signature);
+                await dealWithBundle();
+                ws.close();
+                MINT_FLAG = false;
+              }
+            }
+          }
+        } catch(err) {
+          logError('Wrong parse response: ', err);
+        }
+      });
+    }
+
     await promiseAll(config?.bundles, mint, 10);
 
-    if (bundleStore?.length) {
+    if (bundleStore?.length && (!config?.listenPool || pendingTx)) {
       await dealWithBundle();
     }
   } catch(err) {

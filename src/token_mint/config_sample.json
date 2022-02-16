@@ -18,8 +18,19 @@
     "gasLimit": 50000
   }],
   "flashbot": true,
-  "limit": 5,
   "debug": true,
-  "blockNumberInFuture": 3,
+  "listenPool": {
+    "wss": "wss://mainnet.infura.io/ws/v3/your_server_id",
+    "subscribe": "{\"jsonrpc\":\"2.0\",\"method\":\"eth_subscribe\",\"params\": [\"newPendingTransactions\"],\"id\":1}",
+    "txChain": "params.result",
+    "contract": "",
+    "input": {
+      "abi": [
+        "function setPublicSale(bool status) external"
+      ],
+      "func": "setPublicSale",
+      "payload": [true]
+    }
+  },
   "endpoint": "https://relay-goerli.flashbots.net"
 }
