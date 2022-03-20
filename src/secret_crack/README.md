@@ -9,9 +9,10 @@ Free lottery of 64-bit secret key cracking.
 add a config.json:
 ```ts
 {
+  // use provider for getting the number of transactions
   defaultProvider?: Array<any>;
   RPCProvider?: Array<any>;
-  // use entry not provider for multiCall
+  // use entry not provider for multiCall balance roughly
   multiCallEntry?: string;
   // up to x addresses per call, only for multiCall
   addrPerCall?: number;

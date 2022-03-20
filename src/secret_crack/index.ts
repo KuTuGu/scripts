@@ -7,9 +7,10 @@ import { logError, logInfo, logSuccess } from '../utils/log';
 import { promiseAll } from "../utils/concurrency";
 
 interface Config {
+  // use provider for getting the number of transactions
   defaultProvider?: Array<any>;
   RPCProvider?: Array<any>;
-  // use entry not provider for multiCall
+  // use entry not provider for multiCall balance roughly
   multiCallEntry?: string;
   // up to x addresses per call, only for multiCall
   addrPerCall?: number;
@@ -33,14 +34,19 @@ function randomString(): string {
   return res;
 }
 
-async function singleCheck(): Promise<string> {
+async function getRandomAddr(): Promise<[string, string]> {
   const secret = randomString();
-  const wallet = new ethers.Wallet(secret, provider);
-  const amount = await wallet?.getBalance?.();
+  const wallet = new ethers.Wallet(secret);
 
-  if (amount?.gt?.(0)) {
-    const addr = await wallet?.getAddress?.();
-    return `${addr} ${secret} ${amount}`;
+  return [await wallet?.getAddress?.(), secret];
+}
+
+async function singleCheck(): Promise<string> {
+  const [addr, secret] = await getRandomAddr();
+  const nonce = await provider.getTransactionCount(addr);
+
+  if (nonce > 0) {
+    return `${addr} ${secret} ${await provider.getBalance(addr)}`;
   }
 }
 
@@ -49,9 +55,7 @@ async function multiCheck(): Promise<string> {
   const res = []
 
   for (let i = 1;i <= (config?.addrPerCall || 20);i++) {
-    const secret = randomString();
-    const wallet = new ethers.Wallet(secret);
-    const addr = await wallet?.getAddress?.();
+    const [addr, secret] = await getRandomAddr();
     KVmap[addr] = secret;
   }
 
