@@ -8,6 +8,8 @@
     "chat": "npm start -- src/discord_chat/index.ts",
     "mint": "npm start -- src/token_mint/index.ts",
     "mint:build": "esbuild src/token_mint/index.ts --bundle --minify --platform=node --outfile=src/token_mint/bundle.js",
+    "listen": "npm start -- src/token_listen/index.ts",
+    "listen:build": "esbuild src/token_listen/index.ts --bundle --minify --platform=node --outfile=src/token_listen/bundle.js",
     "crack": "npm start -- src/secret_crack/index.ts",
     "crack:build": "esbuild src/secret_crack/index.ts --bundle --minify --platform=node --outfile=src/secret_crack/bundle.js"
   },
