@@ -101,7 +101,7 @@ async function init(conf: Config): Promise<void> {
   config = conf;
   if (config?.RPCProvider?.length) {
     provider = new ethers.providers.StaticJsonRpcProvider(...config?.RPCProvider);
-  } else {
+  } else if (config?.defaultProvider?.length) {
     provider = ethers.getDefaultProvider(...config?.defaultProvider);
   }
 
