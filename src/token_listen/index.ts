@@ -60,11 +60,11 @@ async function swap(info: SwapInfo) {
   try {
     const tokenSend = new ethers.Contract(info?.tokenSend, tokenABI, wallet);
     const sendSymbol = await tokenSend?.symbol?.();
-    const sendDecimal = await tokenSend?.decimal?.();
+    const sendDecimal = await tokenSend?.decimals?.();
 
     const tokenReceive = new ethers.Contract(info?.tokenReceive, tokenABI, wallet);
     const receiveSymbol = await tokenReceive?.symbol?.();
-    const receiveDecimal = await tokenReceive?.decimal?.();
+    const receiveDecimal = await tokenReceive?.decimals?.();
 
     const router = new ethers.Contract(info?.router, routerABI, wallet);
     const [_, amountReceive] = await router.getAmountsOut(
